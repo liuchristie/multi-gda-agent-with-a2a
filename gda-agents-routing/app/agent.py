@@ -25,7 +25,7 @@ from google.adk.plugins.bigquery_agent_analytics_plugin import (
     BigQueryLoggerConfig,
 )
 from google.genai import types
-
+from google.adk.tools import google_search
 from app.config import ROUTER_MODEL
 from app.remote_agents import get_remote_agent
 
@@ -41,12 +41,21 @@ Your role is to understand user analytical queries and delegate them to the appr
 - For follow-up questions within the same analytical domain, maintain continuity with that sub-agent.
 - If no specialized agent covers the requested domain, inform the user about the available data capabilities.
 - If it is unclear which data domain the user is asking about, ask the user for clarification.
+
+Google Search Tool
+- In addition to using the specialized data agents, you can also use google_search_agent to lookup internet data to help answer user's question unrelated to enterprise data.
 """
 
 subagents = get_remote_agent()
 
-
-
+search_agent = Agent(
+    name="google_search_agent",
+    tools=[google_search],
+    instruction="Use the google_search tool to find info related to query",
+    model=Gemini(model="gemini-3.5-flash-lite", retry_options=types.HttpRetryOptions(attempts=3)),
+    description="Use this agent to find information on the internet",
+)
+all_agents = subagents + [search_agent]
 root_agent = Agent(
     name="root_agent",
     model=Gemini(
@@ -54,7 +63,7 @@ root_agent = Agent(
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     instruction=ROUTER_INSTRUCTION,
-    sub_agents=subagents,
+    sub_agents=all_agents
 )
 
 
